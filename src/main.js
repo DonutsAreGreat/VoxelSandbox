@@ -28,6 +28,10 @@ const settingSens = document.getElementById('settingSens');
 const settingSensValue = document.getElementById('settingSensValue');
 const settingFog = document.getElementById('settingFog');
 const settingFogValue = document.getElementById('settingFogValue');
+const worldSeedInput = document.getElementById('worldSeedInput');
+const worldSeedRandom = document.getElementById('worldSeedRandom');
+const worldSeedCreate = document.getElementById('worldSeedCreate');
+const currentWorldLabel = document.getElementById('currentWorldLabel');
 
 const renderer = createRenderer(canvas);
 const scene = new THREE.Scene();
@@ -44,12 +48,13 @@ scene.add(dirLight);
 
 const input = new Input(canvas, null);
 const time = new Time();
-const world = new VoxelWorld(scene);
+let currentWorldSeed = 'default';
+let world = new VoxelWorld(scene, currentWorldSeed);
 const physics = new SimplePhysics();
 const controller = new FPSController(camera, input, physics);
 const hud = new HUD(hudRoot);
 const tools = new Tools();
-const explosions = new Explosions(scene, world);
+let explosions = new Explosions(scene, world);
 
 const highlight = (() => {
   const geo = new THREE.EdgesGeometry(new THREE.BoxGeometry(VOXEL_SIZE, VOXEL_SIZE, VOXEL_SIZE));
@@ -66,6 +71,8 @@ const highlight = (() => {
   return mesh;
 })();
 
+setWorldSeedUI(currentWorldSeed);
+
 let menuOpen = false;
 let hasLockedPointer = false;
 
@@ -73,6 +80,57 @@ function formatTime(ts) {
   if (!ts) return 'Empty';
   const d = new Date(ts);
   return d.toLocaleString();
+}
+
+function randomSeed() {
+  return Math.random().toString(36).slice(2, 10);
+}
+
+function setWorldSeedUI(seed) {
+  if (currentWorldLabel) currentWorldLabel.textContent = seed;
+  if (worldSeedInput) worldSeedInput.value = seed;
+}
+
+async function switchWorld(seed) {
+  const targetSeed = seed && seed.trim() ? seed.trim() : randomSeed();
+  currentWorldSeed = targetSeed;
+
+  if (world) {
+    await world.flushSaves();
+    for (const [, chunk] of world.chunks) {
+      if (chunk.mesh && chunk.mesh.parent) scene.remove(chunk.mesh);
+      chunk.dispose();
+    }
+    world.chunks.clear();
+  }
+
+  if (explosions) {
+    for (const bomb of explosions.bombs) {
+      if (bomb.mesh && bomb.mesh.parent) scene.remove(bomb.mesh);
+    }
+    for (const d of explosions.debris) {
+      if (d.mesh && d.mesh.parent) scene.remove(d.mesh);
+      if (d.mesh) {
+        d.mesh.geometry.dispose();
+        if (Array.isArray(d.mesh.material)) {
+          d.mesh.material.forEach((m) => m.dispose());
+        } else if (d.mesh.material) {
+          d.mesh.material.dispose();
+        }
+      }
+    }
+  }
+
+  world = new VoxelWorld(scene, currentWorldSeed);
+  explosions = new Explosions(scene, world);
+  controller.position.set(0, 40, 0);
+  controller.velocity.set(0, 0, 0);
+  world.updateVisible(controller.position);
+  world.processRemeshQueue(16);
+  setWorldSeedUI(currentWorldSeed);
+  queueSaveSettings();
+  await refreshSlots();
+  updateHUD();
 }
 
 function uiSettings() {
@@ -162,7 +220,7 @@ function queueSaveSettings() {
   if (settingsSaveTimer) clearTimeout(settingsSaveTimer);
   settingsSaveTimer = setTimeout(async () => {
     settingsSaveTimer = null;
-    await world.storage.saveSettings(uiSettings());
+    await world.storage.saveSettings({ ...uiSettings(), worldSeed: currentWorldSeed });
   }, 200);
 }
 
@@ -242,12 +300,34 @@ refreshSlots();
 
 (async () => {
   const saved = await world.storage.loadSettings();
+  const seed = saved?.worldSeed ?? currentWorldSeed;
+  if (settingFov && saved?.fov) settingFov.value = saved.fov;
+  if (settingSens && saved?.sens) settingSens.value = saved.sens;
+  if (settingFog && saved?.fog) settingFog.value = saved.fog;
   setSettingsUI({
-    fov: saved?.fov ?? DEFAULT_FOV,
-    sens: saved?.sens ?? DEFAULT_SENS,
-    fog: saved?.fog ?? DEFAULT_FOG_FAR,
+    fov: settingFov ? Number(settingFov.value) || DEFAULT_FOV : DEFAULT_FOV,
+    sens: settingSens ? Number(settingSens.value) || DEFAULT_SENS : DEFAULT_SENS,
+    fog: settingFog ? Number(settingFog.value) || DEFAULT_FOG_FAR : DEFAULT_FOG_FAR,
   });
+  setWorldSeedUI(seed);
+  if (seed !== currentWorldSeed) {
+    await switchWorld(seed);
+  }
 })();
+
+if (worldSeedRandom) {
+  worldSeedRandom.addEventListener('click', () => {
+    const s = randomSeed();
+    if (worldSeedInput) worldSeedInput.value = s;
+  });
+}
+
+if (worldSeedCreate) {
+  worldSeedCreate.addEventListener('click', async () => {
+    const seed = worldSeedInput ? worldSeedInput.value : '';
+    await switchWorld(seed || randomSeed());
+  });
+}
 
 // If pointer lock is lost (e.g., user presses Escape), automatically open the menu after the first lock.
 document.addEventListener('pointerlockchange', () => {
@@ -384,4 +464,4 @@ world.processRemeshQueue(16);
 animate();
 
 // Dev info in console
-console.log(`Chunk size ${CHUNK_SIZE}, voxel ${VOXEL_SIZE}, view ${VIEW_DISTANCE_CHUNKS}`);
+console.log(`Chunk size ${CHUNK_SIZE}, voxel ${VOXEL_SIZE}, view ${VIEW_DISTANCE_CHUNKS}, seed ${currentWorldSeed}`);

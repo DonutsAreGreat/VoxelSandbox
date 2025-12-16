@@ -238,7 +238,7 @@ export class ChunkStorage {
   }
 
   settingsKey() {
-    return `world:${this.worldId}:settings`;
+    return 'global:settings';
   }
 
   async saveSettings(settings) {

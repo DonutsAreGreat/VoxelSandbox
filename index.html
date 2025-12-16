@@ -59,6 +59,20 @@
           </div>
           <div class="smallprint">Slots are stored locally in your browser (IndexedDB).</div>
         </section>
+
+        <section class="menu-section">
+          <div class="menu-section-title">Create New World</div>
+          <div class="world-row">
+            <span>Current world</span>
+            <span id="currentWorldLabel" class="mono">default</span>
+          </div>
+          <div class="world-row">
+            <input id="worldSeedInput" type="text" placeholder="Enter seed or leave blank for random">
+            <button id="worldSeedRandom" type="button">Random</button>
+          </div>
+          <button id="worldSeedCreate" type="button" class="primary full">Create / Load</button>
+          <div class="smallprint">Uses the seed to generate terrain. Each seed has its own local save data.</div>
+        </section>
       </div>
     </div>
   </div>
