@@ -13,13 +13,15 @@ export class Sky {
   }
 
   buildDome() {
-    const geo = new THREE.SphereGeometry(800, 32, 24);
+    const geo = new THREE.SphereGeometry(1200, 32, 24);
     const mat = new THREE.ShaderMaterial({
       side: THREE.BackSide,
       depthWrite: false,
+      depthTest: false,
       uniforms: {
-        topColor: { value: new THREE.Color(0x87cefa) },
-        bottomColor: { value: new THREE.Color(0xb3e5ff) },
+        topColor: { value: new THREE.Color(0x8ccfff) },
+        midColor: { value: new THREE.Color(0x98d8ff) },
+        bottomColor: { value: new THREE.Color(0xbce6ff) },
       },
       vertexShader: `
         varying vec3 vWorldPosition;
@@ -32,23 +34,27 @@ export class Sky {
       fragmentShader: `
         varying vec3 vWorldPosition;
         uniform vec3 topColor;
+        uniform vec3 midColor;
         uniform vec3 bottomColor;
         void main() {
           float h = normalize(vWorldPosition).y * 0.5 + 0.5;
-          vec3 col = mix(bottomColor, topColor, smoothstep(0.0, 1.0, h));
+          vec3 col = mix(bottomColor, midColor, smoothstep(0.0, 0.4, h));
+          col = mix(col, topColor, smoothstep(0.4, 1.0, h));
           gl_FragColor = vec4(col, 1.0);
         }
       `,
     });
     this.dome = new THREE.Mesh(geo, mat);
+    this.dome.renderOrder = -50;
     this.group.add(this.dome);
   }
 
   buildSun() {
-    const geo = new THREE.PlaneGeometry(40, 40);
+    const geo = new THREE.PlaneGeometry(18, 18);
     const mat = new THREE.ShaderMaterial({
       transparent: true,
       depthWrite: false,
+      depthTest: false,
       uniforms: {
         color: { value: new THREE.Color(0xfff6c0) },
       },
@@ -65,34 +71,58 @@ export class Sky {
         void main() {
           vec2 p = vUv - 0.5;
           float d = length(p) * 2.0;
-          float alpha = smoothstep(1.0, 0.6, d);
-          vec3 col = mix(color * 1.5, color, d);
+          float alpha = smoothstep(1.0, 0.4, d);
+          vec3 col = mix(color * 1.1, color, d);
           gl_FragColor = vec4(col, alpha);
         }
       `,
     });
     this.sun = new THREE.Mesh(geo, mat);
-    this.sun.position.set(120, 180, -80);
+    this.sunDir = new THREE.Vector3(0.3, 0.65, -0.5).normalize();
+    this.sun.position.copy(this.sunDir).multiplyScalar(600);
+    this.sun.renderOrder = -40;
     this.group.add(this.sun);
   }
 
   buildClouds() {
-    const count = 40;
+    const count = 18;
     for (let i = 0; i < count; i++) {
-      const w = 30 + Math.random() * 40;
-      const h = 8 + Math.random() * 8;
+      const w = 40 + Math.random() * 50;
+      const h = 16 + Math.random() * 10;
       const geo = new THREE.PlaneGeometry(w, h);
-      const mat = new THREE.MeshBasicMaterial({
-        color: 0xffffff,
+      const mat = new THREE.ShaderMaterial({
         transparent: true,
-        opacity: 0.26 + Math.random() * 0.12,
         depthWrite: false,
+        depthTest: false,
+        uniforms: {
+          color: { value: new THREE.Color(0xffffff) },
+          opacity: { value: 0.18 + Math.random() * 0.08 },
+        },
+        vertexShader: `
+          varying vec2 vUv;
+          void main() {
+            vUv = uv;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+          }
+        `,
+        fragmentShader: `
+          varying vec2 vUv;
+          uniform vec3 color;
+          uniform float opacity;
+          void main() {
+            vec2 p = vUv - 0.5;
+            float d = length(p) * 2.0;
+            float a = smoothstep(1.0, 0.4, d);
+            gl_FragColor = vec4(color, opacity * a);
+          }
+        `,
       });
       const cloud = new THREE.Mesh(geo, mat);
-      cloud.position.set((Math.random() - 0.5) * 500, 120 + Math.random() * 30, (Math.random() - 0.5) * 500);
+      cloud.position.set((Math.random() - 0.5) * 500, 140 + Math.random() * 20, (Math.random() - 0.5) * 500);
       cloud.rotation.y = Math.random() * Math.PI * 2;
       cloud.rotation.x = -0.05;
-      cloud.userData.speed = 2 + Math.random() * 2;
+      cloud.userData.speed = 0.4 + Math.random() * 0.5;
+      cloud.renderOrder = -30;
       this.clouds.push(cloud);
       this.group.add(cloud);
     }
@@ -109,13 +139,13 @@ export class Sky {
     // move clouds slowly and wrap
     for (const c of this.clouds) {
       c.position.x += Math.sin(this.time * 0.05) * c.userData.speed * dt;
-      c.position.z += Math.cos(this.time * 0.05) * c.userData.speed * dt;
-      const r = 260;
+      c.position.z += Math.cos(this.time * 0.04) * c.userData.speed * dt;
+      const r = 520;
       if (c.position.x > r) c.position.x = -r;
       if (c.position.x < -r) c.position.x = r;
       if (c.position.z > r) c.position.z = -r;
       if (c.position.z < -r) c.position.z = r;
-      c.lookAt(camera.position.x, c.position.y, camera.position.z);
+      c.quaternion.copy(camera.quaternion); // billboard toward camera
     }
   }
 

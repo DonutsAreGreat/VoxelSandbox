@@ -38,8 +38,8 @@ const currentWorldLabel = document.getElementById('currentWorldLabel');
 
 const renderer = createRenderer(canvas);
 const scene = new THREE.Scene();
-scene.background = null;
-scene.fog = new THREE.Fog(new THREE.Color(0x8cc9ff), 80, DEFAULT_FOG_FAR);
+scene.background = new THREE.Color(0xbce6ff);
+scene.fog = new THREE.Fog(scene.background, 80, DEFAULT_FOG_FAR);
 
 const camera = new THREE.PerspectiveCamera(DEFAULT_FOV, window.innerWidth / window.innerHeight, 0.1, 220);
 
