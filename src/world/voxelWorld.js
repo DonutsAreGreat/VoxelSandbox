@@ -1,18 +1,19 @@
 import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
 import { Chunk, CHUNK_SIZE, VOXEL_SIZE } from './chunk.js';
-import { generateChunk } from './generation.js';
+import { generateChunk, setWorldSeed } from './generation.js';
 import { ChunkStorage } from './chunkStorage.js';
 
 export const VIEW_DISTANCE_CHUNKS = 3;
-const WORLD_ID = 'default';
 
 export class VoxelWorld {
-  constructor(scene) {
+  constructor(scene, worldId = 'default') {
     this.scene = scene;
+    this.worldId = worldId;
     this.chunks = new Map();
     this.remeshQueue = [];
     this.queued = new Set();
-    this.storage = new ChunkStorage(WORLD_ID);
+    this.storage = new ChunkStorage(this.worldId);
+    setWorldSeed(this.worldId);
 
     this.chunkMaterial = new THREE.MeshStandardMaterial({
       vertexColors: true,
