@@ -5,6 +5,7 @@ import { Time } from './core/time.js';
 import { FPSController } from './game/fpsController.js';
 import { HUD } from './game/hud.js';
 import { Car } from './game/car.js';
+import { Sky } from './game/sky.js';
 import { VoxelWorld, CHUNK_SIZE, VOXEL_SIZE, VIEW_DISTANCE_CHUNKS } from './world/voxelWorld.js';
 import { raycastVoxel } from './world/raycastVoxel.js';
 import { Tools } from './destruction/tools.js';
@@ -37,8 +38,8 @@ const currentWorldLabel = document.getElementById('currentWorldLabel');
 
 const renderer = createRenderer(canvas);
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x0b1325);
-scene.fog = new THREE.Fog(scene.background, 80, DEFAULT_FOG_FAR);
+scene.background = null;
+scene.fog = new THREE.Fog(new THREE.Color(0x8cc9ff), 80, DEFAULT_FOG_FAR);
 
 const camera = new THREE.PerspectiveCamera(DEFAULT_FOV, window.innerWidth / window.innerHeight, 0.1, 220);
 
@@ -59,6 +60,7 @@ const tools = new Tools();
 let explosions = new Explosions(scene, world);
 let car = new Car(scene, world);
 let inCar = false;
+let sky = new Sky(scene);
 
 const highlight = (() => {
   const geo = new THREE.EdgesGeometry(new THREE.BoxGeometry(VOXEL_SIZE, VOXEL_SIZE, VOXEL_SIZE));
@@ -134,6 +136,9 @@ async function switchWorld(seed) {
   setWorldSeedUI(currentWorldSeed);
   if (car) car.dispose();
   car = new Car(scene, world);
+  if (sky) sky.dispose();
+  // recreate sky to reset fog color if needed
+  sky = new Sky(scene);
   queueSaveSettings();
   await refreshSlots();
   updateHUD();
@@ -495,6 +500,7 @@ function animate() {
   world.updateVisible(controller.position);
   world.processRemeshQueue(2);
   explosions.update(time.delta);
+  sky.update(time.delta, camera);
   resizeRendererToDisplaySize(renderer, camera);
   renderer.render(scene, camera);
   updateHUD();

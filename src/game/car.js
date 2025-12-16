@@ -68,7 +68,7 @@ export class Car {
   }
 
   update(dt, input) {
-    const forward = input.isDown('KeyW') ? 1 : input.isDown('KeyS') ? -1 : 0;
+    const forward = input.isDown('KeyS') ? 1 : input.isDown('KeyW') ? -1 : 0;
     const steer = input.isDown('KeyA') ? 1 : input.isDown('KeyD') ? -1 : 0;
 
     const maxSpeed = 18;
