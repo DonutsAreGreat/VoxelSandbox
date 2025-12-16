@@ -23,6 +23,49 @@ function base64ToBuffer(str) {
   return bytes;
 }
 
+function compressRLE(bytes) {
+  const out = [];
+  for (let i = 0; i < bytes.length; ) {
+    const val = bytes[i];
+    let run = 1;
+    while (i + run < bytes.length && bytes[i + run] === val && run < 65535) {
+      run++;
+    }
+    out.push(val, run & 0xff, (run >> 8) & 0xff);
+    i += run;
+  }
+  return new Uint8Array(out);
+}
+
+function decompressRLE(bytes, expectedLength) {
+  const out = new Uint8Array(expectedLength);
+  let outIdx = 0;
+  for (let i = 0; i < bytes.length; i += 3) {
+    const val = bytes[i];
+    const run = bytes[i + 1] | (bytes[i + 2] << 8);
+    out.fill(val, outIdx, outIdx + run);
+    outIdx += run;
+  }
+  return out;
+}
+
+function packChunk(bytes) {
+  const compressed = compressRLE(bytes);
+  if (compressed.length + 2 < bytes.length) {
+    return { fmt: 'rle', data: compressed, origLength: bytes.length };
+  }
+  return { fmt: 'raw', data: new Uint8Array(bytes), origLength: bytes.length };
+}
+
+function unpackChunk(record) {
+  if (!record) return null;
+  if (record.fmt === 'rle' && record.origLength) {
+    return decompressRLE(new Uint8Array(record.data), record.origLength);
+  }
+  if (record.data) return new Uint8Array(record.data);
+  return null;
+}
+
 export class ChunkStorage {
   constructor(worldId = 'default') {
     this.worldId = worldId;
@@ -63,12 +106,7 @@ export class ChunkStorage {
       const req = store.get(this.key(cx, cy, cz));
       req.onerror = () => reject(req.error);
       req.onsuccess = () => {
-        const value = req.result;
-        if (!value || !value.data) {
-          resolve(null);
-          return;
-        }
-        resolve(new Uint8Array(value.data));
+        resolve(unpackChunk(req.result));
       };
     });
   }
@@ -95,7 +133,8 @@ export class ChunkStorage {
           new Promise((resolve, reject) => {
             const tx = db.transaction(STORE_NAME, 'readwrite');
             const store = tx.objectStore(STORE_NAME);
-            const req = store.put({ key, data });
+            const packed = packChunk(data);
+            const req = store.put({ key, data: packed.data, fmt: packed.fmt, origLength: packed.origLength });
             req.onerror = () => reject(req.error);
             req.onsuccess = () => resolve();
           })
@@ -125,6 +164,8 @@ export class ChunkStorage {
             cy: coords[1],
             cz: coords[2],
             data: bufferToBase64(cursor.value.data),
+            fmt: cursor.value.fmt,
+            origLength: cursor.value.origLength,
           });
         }
         cursor.continue();
@@ -144,8 +185,12 @@ export class ChunkStorage {
         (chunk) =>
           new Promise((resolve, reject) => {
             const key = `world:${targetWorld}:${chunk.cx},${chunk.cy},${chunk.cz}`;
-            const data = base64ToBuffer(chunk.data);
-            const req = store.put({ key, data });
+            const rawData = base64ToBuffer(chunk.data);
+            const fmt = chunk.fmt || 'raw';
+            const record = fmt === 'rle'
+              ? { key, data: rawData, fmt: 'rle', origLength: chunk.origLength }
+              : { key, data: rawData, fmt: 'raw', origLength: rawData.length };
+            const req = store.put(record);
             req.onerror = () => reject(req.error);
             req.onsuccess = () => resolve();
           })
