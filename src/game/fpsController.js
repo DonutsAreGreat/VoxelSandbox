@@ -6,7 +6,7 @@ export class FPSController {
     this.input = input;
     this.physics = physics;
 
-    this.position = new THREE.Vector3(0, 40, 0); // feet position
+    this.position = new THREE.Vector3(0, 70, 0); // feet position
     this.velocity = new THREE.Vector3();
     this.yaw = 0;
     this.pitch = 0;

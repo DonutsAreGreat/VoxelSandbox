@@ -2,7 +2,8 @@ import { CHUNK_SIZE } from './chunk.js';
 import { MIN_HEIGHT, MAX_HEIGHT } from './constants.js';
 import { BEDROCK_ID } from './materials.js';
 
-const BASE_HEIGHT = 12;
+// Keep terrain comfortably above bedrock; base height targets ~62 with small variation.
+const BASE_HEIGHT = 62;
 let worldSeed = 1337;
 
 function hashString(str) {

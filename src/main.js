@@ -123,7 +123,7 @@ async function switchWorld(seed) {
 
   world = new VoxelWorld(scene, currentWorldSeed);
   explosions = new Explosions(scene, world);
-  controller.position.set(0, 40, 0);
+  controller.position.set(0, 70, 0);
   controller.velocity.set(0, 0, 0);
   world.updateVisible(controller.position);
   world.processRemeshQueue(16);
