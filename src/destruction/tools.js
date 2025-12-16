@@ -1,4 +1,4 @@
-import { MATERIALS, BOMB_ID } from '../world/materials.js';
+import { MATERIALS, BOMB_ID, BEDROCK_ID } from '../world/materials.js';
 
 const TOOL_TYPES = ['Pickaxe', 'Blaster', 'Bomb'];
 
@@ -15,12 +15,12 @@ export class Tools {
   }
 
   cycleMaterial(delta) {
-    const usable = MATERIALS.filter((m) => m.id !== 0 && m.id !== BOMB_ID);
+    const usable = MATERIALS.filter((m) => m.id !== 0 && m.id !== BOMB_ID && m.id !== BEDROCK_ID);
     this.materialIndex = (this.materialIndex + delta + usable.length) % usable.length;
   }
 
   currentMaterial() {
-    const usable = MATERIALS.filter((m) => m.id !== 0 && m.id !== BOMB_ID);
+    const usable = MATERIALS.filter((m) => m.id !== 0 && m.id !== BOMB_ID && m.id !== BEDROCK_ID);
     return usable[this.materialIndex] || usable[0];
   }
 
@@ -49,8 +49,7 @@ export class Tools {
         y: hit.voxel.y + hit.normal.y,
         z: hit.voxel.z + hit.normal.z,
       };
-      world.setVoxel(target.x, target.y, target.z, mat);
-      return true;
+      return world.setVoxel(target.x, target.y, target.z, mat) === true;
     }
     return false;
   }

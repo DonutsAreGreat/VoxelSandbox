@@ -1,5 +1,6 @@
 import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
 
+export const BEDROCK_ID = 7;
 export const BOMB_ID = 6;
 
 export const MATERIALS = [
@@ -10,6 +11,7 @@ export const MATERIALS = [
   { id: 4, name: 'Metal', color: new THREE.Color(0x9fb8c6) },
   { id: 5, name: 'Grass', color: new THREE.Color(0x4e9c54) },
   { id: BOMB_ID, name: 'Bomb', color: new THREE.Color(0xff5f52) },
+  { id: BEDROCK_ID, name: 'Bedrock', color: new THREE.Color(0x1b1e24) },
 ];
 
 export function colorForMaterial(id) {

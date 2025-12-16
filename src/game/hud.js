@@ -13,6 +13,7 @@ export class HUD {
       <div class="hud-row"><span class="label">Tool</span><span class="value" id="hud-tool">Pickaxe</span></div>
       <div class="hud-row"><span class="label">Material</span><span class="value" id="hud-mat">Stone</span></div>
       <div class="hud-row"><span class="label">Bombs</span><span class="value" id="hud-bombs">0</span></div>
+      <div class="hud-row"><span class="label">Pos</span><span class="value mono" id="hud-pos">0,0,0</span></div>
       <div class="hud-row"><span class="label">Tip</span><span class="value" id="hud-tip">Click to dig</span></div>
     `;
     this.root.appendChild(this.panel);
@@ -25,6 +26,7 @@ export class HUD {
     this.toolValue = this.panel.querySelector('#hud-tool');
     this.matValue = this.panel.querySelector('#hud-mat');
     this.bombValue = this.panel.querySelector('#hud-bombs');
+    this.posValue = this.panel.querySelector('#hud-pos');
     this.tipValue = this.panel.querySelector('#hud-tip');
   }
 
@@ -34,5 +36,9 @@ export class HUD {
     if (info.bombs !== undefined) this.bombValue.textContent = info.bombs.toString();
     if (info.fps !== undefined) this.fps.textContent = `FPS: ${info.fps.toFixed(0)}`;
     if (info.tip) this.tipValue.textContent = info.tip;
+    if (info.position) {
+      const { x, y, z } = info.position;
+      this.posValue.textContent = `${x.toFixed(1)}, ${y.toFixed(1)}, ${z.toFixed(1)}`;
+    }
   }
 }

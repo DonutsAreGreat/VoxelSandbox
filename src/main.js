@@ -210,6 +210,7 @@ function updateHUD() {
     bombs: explosions.bombs.length,
     fps: time.smoothFPS,
     tip: toolTip(tools.currentToolName()),
+    position: controller.position,
   });
 }
 

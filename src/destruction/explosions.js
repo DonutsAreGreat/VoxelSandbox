@@ -36,7 +36,10 @@ export class Explosions {
     mesh.receiveShadow = false;
     this.scene.add(mesh);
 
-    this.world.setVoxel(voxel.x, voxel.y, voxel.z, BOMB_ID);
+    if (!this.world.setVoxel(voxel.x, voxel.y, voxel.z, BOMB_ID)) {
+      this.scene.remove(mesh);
+      return false;
+    }
     this.bombs.push({ voxel: { ...voxel }, position, mesh });
     return true;
   }

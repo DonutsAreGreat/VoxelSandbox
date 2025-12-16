@@ -2,6 +2,8 @@ import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
 import { Chunk, CHUNK_SIZE, VOXEL_SIZE } from './chunk.js';
 import { generateChunk, setWorldSeed } from './generation.js';
 import { ChunkStorage } from './chunkStorage.js';
+import { BEDROCK_ID } from './materials.js';
+import { MIN_HEIGHT, MAX_HEIGHT } from './constants.js';
 
 export const VIEW_DISTANCE_CHUNKS = 3;
 
@@ -70,6 +72,7 @@ export class VoxelWorld {
   }
 
   getVoxel(wx, wy, wz, createIfMissing = false) {
+    if (wy < MIN_HEIGHT || wy > MAX_HEIGHT) return wy === MIN_HEIGHT ? BEDROCK_ID : 0;
     const cx = this.worldToChunkCoord(wx);
     const cy = this.worldToChunkCoord(wy);
     const cz = this.worldToChunkCoord(wz);
@@ -82,6 +85,7 @@ export class VoxelWorld {
   }
 
   setVoxel(wx, wy, wz, id) {
+    if (wy < MIN_HEIGHT || wy > MAX_HEIGHT) return false;
     const cx = this.worldToChunkCoord(wx);
     const cy = this.worldToChunkCoord(wy);
     const cz = this.worldToChunkCoord(wz);
@@ -89,9 +93,12 @@ export class VoxelWorld {
     const lx = ((wx % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
     const ly = ((wy % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
     const lz = ((wz % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
+    const existing = chunk.getVoxel(lx, ly, lz);
+    if (wy === MIN_HEIGHT && existing === BEDROCK_ID && id === 0) return false; // unbreakable floor
     chunk.setVoxel(lx, ly, lz, id);
     this.scheduleRemesh(chunk);
     this.storage.queueSave(cx, cy, cz, chunk.data);
+    return true;
 
     // Neighbor remesh if we touched a boundary
     const onBoundary = [
@@ -192,4 +199,4 @@ export class VoxelWorld {
 }
 
 // Re-export constants for convenience
-export { CHUNK_SIZE, VOXEL_SIZE };
+export { CHUNK_SIZE, VOXEL_SIZE, MIN_HEIGHT, MAX_HEIGHT };

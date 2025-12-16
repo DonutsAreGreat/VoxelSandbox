@@ -1,4 +1,6 @@
 import { CHUNK_SIZE } from './chunk.js';
+import { MIN_HEIGHT, MAX_HEIGHT } from './constants.js';
+import { BEDROCK_ID } from './materials.js';
 
 const BASE_HEIGHT = 12;
 let worldSeed = 1337;
@@ -74,6 +76,16 @@ export function generateChunk(chunk) {
 
       for (let y = 0; y < CHUNK_SIZE; y++) {
         const wy = chunk.cy * CHUNK_SIZE + y;
+        if (wy < MIN_HEIGHT || wy > MAX_HEIGHT) {
+          chunk.setVoxel(x, y, z, 0);
+          continue;
+        }
+
+        if (wy === MIN_HEIGHT) {
+          chunk.setVoxel(x, y, z, BEDROCK_ID);
+          continue;
+        }
+
         if (wy > h) {
           chunk.setVoxel(x, y, z, 0);
           continue;
