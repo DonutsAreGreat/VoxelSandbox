@@ -4,6 +4,7 @@ import { Input } from './core/input.js';
 import { Time } from './core/time.js';
 import { FPSController } from './game/fpsController.js';
 import { HUD } from './game/hud.js';
+import { Car } from './game/car.js';
 import { VoxelWorld, CHUNK_SIZE, VOXEL_SIZE, VIEW_DISTANCE_CHUNKS } from './world/voxelWorld.js';
 import { raycastVoxel } from './world/raycastVoxel.js';
 import { Tools } from './destruction/tools.js';
@@ -56,6 +57,8 @@ const controller = new FPSController(camera, input, physics);
 const hud = new HUD(hudRoot);
 const tools = new Tools();
 let explosions = new Explosions(scene, world);
+let car = new Car(scene, world);
+let inCar = false;
 
 const highlight = (() => {
   const geo = new THREE.EdgesGeometry(new THREE.BoxGeometry(VOXEL_SIZE, VOXEL_SIZE, VOXEL_SIZE));
@@ -129,6 +132,8 @@ async function switchWorld(seed) {
   world.updateVisible(controller.position);
   world.processRemeshQueue(16);
   setWorldSeedUI(currentWorldSeed);
+  if (car) car.dispose();
+  car = new Car(scene, world);
   queueSaveSettings();
   await refreshSlots();
   updateHUD();
@@ -212,6 +217,7 @@ function updateHUD() {
     fps: time.smoothFPS,
     tip: toolTip(tools.currentToolName()),
     position: controller.position,
+    vehicle: inCar ? 'Car' : 'On foot',
   });
 }
 
@@ -390,7 +396,7 @@ function handleSecondary() {
 }
 
 window.addEventListener('mousedown', (e) => {
-  if (!input.pointerLocked) return;
+  if (!input.pointerLocked || inCar) return;
   if (e.button === 0) {
     handlePrimary();
   } else if (e.button === 2) {
@@ -438,6 +444,25 @@ window.addEventListener('keydown', (e) => {
     if (count > 0) updateHUD();
   }
 
+  if (e.code === 'KeyV') {
+    if (inCar) {
+      inCar = false;
+      controller.position.copy(car.position).add(new THREE.Vector3(0, 1.6, 0));
+      controller.velocity.set(0, 0, 0);
+      updateHUD();
+      return;
+    } else {
+      const dist = controller.position.distanceTo(car.position);
+      if (dist < 3) {
+        inCar = true;
+        controller.velocity.set(0, 0, 0);
+        controller.yaw = car.yaw;
+        updateHUD();
+        return;
+      }
+    }
+  }
+
   updateHUD();
 });
 
@@ -448,7 +473,23 @@ function animate() {
   time.update();
 
   if (input.pointerLocked) {
-    controller.update(time.delta, world);
+    if (inCar) {
+      // Manual look while driving
+      const look = input.getLookDelta();
+      controller.yaw -= look.dx * controller.sensitivity;
+      controller.pitch -= look.dy * controller.sensitivity;
+      const clampPitch = Math.PI / 2 - 0.05;
+      controller.pitch = Math.max(-clampPitch, Math.min(clampPitch, controller.pitch));
+
+      car.yaw = controller.yaw;
+      car.update(time.delta, input);
+      controller.yaw = car.yaw;
+      controller.position.copy(car.position);
+      camera.position.copy(car.getSeatPosition());
+      camera.rotation.set(controller.pitch, controller.yaw, 0, 'YXZ');
+    } else {
+      controller.update(time.delta, world);
+    }
   }
 
   world.updateVisible(controller.position);
