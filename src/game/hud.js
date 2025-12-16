@@ -14,6 +14,7 @@ export class HUD {
       <div class="hud-row"><span class="label">Material</span><span class="value" id="hud-mat">Stone</span></div>
       <div class="hud-row"><span class="label">Bombs</span><span class="value" id="hud-bombs">0</span></div>
       <div class="hud-row"><span class="label">Mode</span><span class="value" id="hud-mode">On foot</span></div>
+      <div class="hud-row"><span class="label">Speed</span><span class="value mono" id="hud-speed">0</span></div>
       <div class="hud-row"><span class="label">Pos</span><span class="value mono" id="hud-pos">0,0,0</span></div>
       <div class="hud-row"><span class="label">Tip</span><span class="value" id="hud-tip">Click to dig</span></div>
     `;
@@ -28,6 +29,7 @@ export class HUD {
     this.matValue = this.panel.querySelector('#hud-mat');
     this.bombValue = this.panel.querySelector('#hud-bombs');
     this.modeValue = this.panel.querySelector('#hud-mode');
+    this.speedValue = this.panel.querySelector('#hud-speed');
     this.posValue = this.panel.querySelector('#hud-pos');
     this.tipValue = this.panel.querySelector('#hud-tip');
   }
@@ -37,6 +39,7 @@ export class HUD {
     if (info.materialName) this.matValue.textContent = info.materialName;
     if (info.bombs !== undefined) this.bombValue.textContent = info.bombs.toString();
     if (info.vehicle) this.modeValue.textContent = info.vehicle;
+    if (info.speed !== undefined) this.speedValue.textContent = info.speed.toFixed(1);
     if (info.fps !== undefined) this.fps.textContent = `FPS: ${info.fps.toFixed(0)}`;
     if (info.tip) this.tipValue.textContent = info.tip;
     if (info.position) {

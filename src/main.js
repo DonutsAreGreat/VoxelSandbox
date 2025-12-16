@@ -25,6 +25,8 @@ const saveSlotsEl = document.getElementById('saveSlots');
 const saveDownload = document.getElementById('saveDownload');
 const saveUpload = document.getElementById('saveUpload');
 const resetWorldBtn = document.getElementById('resetWorld');
+const spawnCarBtn = document.getElementById('spawnCar');
+const despawnCarBtn = document.getElementById('despawnCar');
 const settingFov = document.getElementById('settingFov');
 const settingFovValue = document.getElementById('settingFovValue');
 const settingSens = document.getElementById('settingSens');
@@ -58,9 +60,12 @@ const controller = new FPSController(camera, input, physics);
 const hud = new HUD(hudRoot);
 const tools = new Tools();
 let explosions = new Explosions(scene, world);
-let car = new Car(scene, world);
+let car = null;
 let inCar = false;
+let thirdPersonCar = true;
 let sky = new Sky(scene);
+let carLookYaw = 0;
+let carLookPitch = 0;
 
 const highlight = (() => {
   const geo = new THREE.EdgesGeometry(new THREE.BoxGeometry(VOXEL_SIZE, VOXEL_SIZE, VOXEL_SIZE));
@@ -134,8 +139,11 @@ async function switchWorld(seed) {
   world.updateVisible(controller.position);
   world.processRemeshQueue(16);
   setWorldSeedUI(currentWorldSeed);
-  if (car) car.dispose();
-  car = new Car(scene, world);
+  if (car) {
+    car.dispose();
+    car = null;
+    inCar = false;
+  }
   if (sky) sky.dispose();
   // recreate sky to reset fog color if needed
   sky = new Sky(scene);
@@ -223,6 +231,7 @@ function updateHUD() {
     tip: toolTip(tools.currentToolName()),
     position: controller.position,
     vehicle: inCar ? 'Car' : 'On foot',
+    speed: inCar && car ? car.velocity.length() : 0,
   });
 }
 
@@ -316,6 +325,29 @@ if (saveSlotsEl) {
         await world.reloadFromStorage(controller.position);
       }
       await refreshSlots();
+    }
+  });
+}
+
+if (spawnCarBtn) {
+  spawnCarBtn.addEventListener('click', () => {
+    if (car) {
+      car.dispose();
+      car = null;
+      inCar = false;
+    }
+    car = new Car(scene, world, controller.position.clone());
+    updateHUD();
+  });
+}
+
+if (despawnCarBtn) {
+  despawnCarBtn.addEventListener('click', () => {
+    if (car) {
+      car.dispose();
+      car = null;
+      inCar = false;
+      updateHUD();
     }
   });
 }
@@ -452,20 +484,27 @@ window.addEventListener('keydown', (e) => {
   if (e.code === 'KeyV') {
     if (inCar) {
       inCar = false;
-      controller.position.copy(car.position).add(new THREE.Vector3(0, 1.6, 0));
+      if (car) controller.position.copy(car.position).add(new THREE.Vector3(0, 1.6, 0));
       controller.velocity.set(0, 0, 0);
+      controller.yaw = carLookYaw;
+      controller.pitch = carLookPitch;
       updateHUD();
       return;
-    } else {
+    } else if (car) {
       const dist = controller.position.distanceTo(car.position);
       if (dist < 3) {
         inCar = true;
         controller.velocity.set(0, 0, 0);
-        controller.yaw = car.yaw;
+        carLookYaw = car.yaw;
+        carLookPitch = controller.pitch;
         updateHUD();
         return;
       }
     }
+  }
+
+  if (e.code === 'KeyC' && inCar) {
+    thirdPersonCar = !thirdPersonCar;
   }
 
   updateHUD();
@@ -479,19 +518,29 @@ function animate() {
 
   if (input.pointerLocked) {
     if (inCar) {
-      // Manual look while driving
-      const look = input.getLookDelta();
-      controller.yaw -= look.dx * controller.sensitivity;
-      controller.pitch -= look.dy * controller.sensitivity;
-      const clampPitch = Math.PI / 2 - 0.05;
-      controller.pitch = Math.max(-clampPitch, Math.min(clampPitch, controller.pitch));
+      if (car) {
+        const look = input.getLookDelta();
+        carLookYaw -= look.dx * controller.sensitivity;
+        carLookPitch -= look.dy * controller.sensitivity;
+        const clampPitch = Math.PI / 2 - 0.05;
+        carLookPitch = Math.max(-clampPitch, Math.min(clampPitch, carLookPitch));
 
-      car.yaw = controller.yaw;
-      car.update(time.delta, input);
-      controller.yaw = car.yaw;
-      controller.position.copy(car.position);
-      camera.position.copy(car.getSeatPosition());
-      camera.rotation.set(controller.pitch, controller.yaw, 0, 'YXZ');
+        car.update(time.delta, input);
+        controller.position.copy(car.position);
+        if (thirdPersonCar) {
+          const behind = new THREE.Vector3(Math.sin(carLookYaw), 0, Math.cos(carLookYaw));
+          const camPos = car.position.clone()
+            .add(new THREE.Vector3(0, 1.8, 0))
+            .addScaledVector(behind, 3)
+            .add(new THREE.Vector3(0, 1.2, 0));
+          camera.position.copy(camPos);
+        } else {
+          camera.position.copy(car.getSeatPosition());
+        }
+        camera.rotation.set(carLookPitch, carLookYaw, 0, 'YXZ');
+      } else {
+        inCar = false;
+      }
     } else {
       controller.update(time.delta, world);
     }

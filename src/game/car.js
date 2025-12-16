@@ -71,8 +71,8 @@ export class Car {
     const forward = input.isDown('KeyS') ? 1 : input.isDown('KeyW') ? -1 : 0;
     const steer = input.isDown('KeyA') ? 1 : input.isDown('KeyD') ? -1 : 0;
 
-    const maxSpeed = 18;
-    const accel = 26;
+    const maxSpeed = 50;
+    const accel = 150;
     const friction = 4;
     const turnSpeed = 2.2;
 
