@@ -1,0 +1,11 @@
+{
+  "type": "module",
+  "scripts": {
+    "start": "echo \"Open index.html in a browser\"",
+    "server": "node server.js",
+    "signal": "node signaling-server.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.3"
+  }
+}

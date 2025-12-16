@@ -11,6 +11,7 @@ import { raycastVoxel } from './world/raycastVoxel.js';
 import { Tools } from './destruction/tools.js';
 import { Explosions } from './destruction/explosions.js';
 import { SimplePhysics } from './physics/simplePhysics.js';
+import { NetClient } from './net/client.js';
 
 const REACH_DISTANCE = 4;
 const DEFAULT_FOG_FAR = 180;
@@ -37,6 +38,13 @@ const worldSeedInput = document.getElementById('worldSeedInput');
 const worldSeedRandom = document.getElementById('worldSeedRandom');
 const worldSeedCreate = document.getElementById('worldSeedCreate');
 const currentWorldLabel = document.getElementById('currentWorldLabel');
+const serverUrlInput = document.getElementById('serverUrl');
+const sessionCodeInput = document.getElementById('sessionCode');
+const sessionRandom = document.getElementById('sessionRandom');
+const sessionHost = document.getElementById('sessionHost');
+const sessionJoin = document.getElementById('sessionJoin');
+const sessionLeave = document.getElementById('sessionLeave');
+const sessionStatus = document.getElementById('sessionStatus');
 
 const renderer = createRenderer(canvas);
 const scene = new THREE.Scene();
@@ -84,6 +92,25 @@ const highlight = (() => {
 
 setWorldSeedUI(currentWorldSeed);
 
+const netState = {
+  client: null,
+  connected: false,
+  code: '',
+  seed: '',
+  pendingChunks: new Set(),
+  remotePlayers: new Map(),
+  lastStateSent: 0,
+};
+
+const remotePlayerGeo = new THREE.BoxGeometry(0.8, 1.8, 0.8);
+const remotePlayerMat = new THREE.MeshStandardMaterial({
+  color: 0x7bc1ff,
+  emissive: 0x0b2238,
+  transparent: true,
+  opacity: 0.7,
+  flatShading: true,
+});
+
 let menuOpen = false;
 let hasLockedPointer = false;
 
@@ -95,6 +122,16 @@ function formatTime(ts) {
 
 function randomSeed() {
   return Math.random().toString(36).slice(2, 10);
+}
+
+function defaultServerUrl() {
+  const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const host = window.location.hostname || 'localhost';
+  return `${proto}//${host}:8090`;
+}
+
+function setSessionStatus(text) {
+  if (sessionStatus) sessionStatus.textContent = text;
 }
 
 function setWorldSeedUI(seed) {
@@ -147,9 +184,147 @@ async function switchWorld(seed) {
   if (sky) sky.dispose();
   // recreate sky to reset fog color if needed
   sky = new Sky(scene);
+  attachWorldHooks();
   queueSaveSettings();
   await refreshSlots();
   updateHUD();
+}
+
+function clearRemotePlayers() {
+  for (const [, data] of netState.remotePlayers) {
+    if (data.mesh && data.mesh.parent) {
+      data.mesh.parent.remove(data.mesh);
+    }
+  }
+  netState.remotePlayers.clear();
+}
+
+function ensureRemotePlayer(peerId) {
+  if (netState.remotePlayers.has(peerId)) return netState.remotePlayers.get(peerId);
+  const mesh = new THREE.Mesh(remotePlayerGeo, remotePlayerMat);
+  mesh.castShadow = false;
+  mesh.receiveShadow = false;
+  scene.add(mesh);
+  const data = { mesh };
+  netState.remotePlayers.set(peerId, data);
+  return data;
+}
+
+function attachWorldHooks() {
+  if (!world) return;
+  world.onEdit = netState.connected ? handleLocalEdit : null;
+  world.onChunkCreated = netState.connected
+    ? (chunk) => requestChunkFromServer(chunk.cx, chunk.cy, chunk.cz)
+    : null;
+}
+
+function requestChunkFromServer(cx, cy, cz) {
+  if (!netState.connected || !netState.client) return;
+  const key = `${cx},${cy},${cz}`;
+  if (netState.pendingChunks.has(key)) return;
+  netState.pendingChunks.add(key);
+  netState.client.requestChunk(cx, cy, cz);
+}
+
+function handleLocalEdit(edit) {
+  if (!netState.connected || !netState.client) return;
+  netState.client.sendEdit(edit.x, edit.y, edit.z, edit.id);
+}
+
+function base64ToUint8(base64) {
+  const bin = atob(base64);
+  const arr = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) {
+    arr[i] = bin.charCodeAt(i);
+  }
+  return arr;
+}
+
+function handleChunkData({ chunk }) {
+  if (!chunk || !world) return;
+  const key = `${chunk.cx},${chunk.cy},${chunk.cz}`;
+  netState.pendingChunks.delete(key);
+  const data = base64ToUint8(chunk.data);
+  const target = world.ensureChunk(chunk.cx, chunk.cy, chunk.cz);
+  target.replaceData(data);
+  world.scheduleRemesh(target);
+  world.storage.queueSave(chunk.cx, chunk.cy, chunk.cz, target.data);
+}
+
+function handleRemoteEdit({ x, y, z, id }) {
+  if (!world) return;
+  world.setVoxel(x, y, z, id, null, { source: 'remote' });
+}
+
+function handleRemoteState({ peerId, x, y, z }) {
+  if (!netState.connected || !netState.client) return;
+  if (peerId === netState.client.peerId) return;
+  const player = ensureRemotePlayer(peerId);
+  player.mesh.position.set(x, y, z);
+}
+
+function hydrateRemotePlayers(list = []) {
+  clearRemotePlayers();
+  for (const [peerId, pos] of list) {
+    if (peerId === netState.client?.peerId) continue;
+    const player = ensureRemotePlayer(peerId);
+    if (pos) {
+      player.mesh.position.set(pos.x, pos.y, pos.z);
+    }
+  }
+}
+
+function disconnectSession(reason = '') {
+  if (netState.client && netState.client.ws) {
+    netState.client.ws.onclose = null;
+    netState.client.ws.close();
+  }
+  netState.client = null;
+  netState.connected = false;
+  netState.code = '';
+  netState.seed = '';
+  netState.pendingChunks.clear();
+  netState.lastStateSent = 0;
+  clearRemotePlayers();
+  attachWorldHooks();
+  setSessionStatus(reason ? `Offline (${reason})` : 'Offline');
+}
+
+async function connectSession(kind) {
+  const code = sessionCodeInput?.value.trim() || 'room1';
+  const url = serverUrlInput?.value.trim() || defaultServerUrl();
+  setSessionStatus('Connecting...');
+  disconnectSession();
+
+  const client = new NetClient(url);
+  netState.client = client;
+
+  client.on('close', () => disconnectSession('Disconnected'));
+  client.on('chunkData', handleChunkData);
+  client.on('edit', handleRemoteEdit);
+  client.on('state', handleRemoteState);
+  client.on('players', ({ players }) => hydrateRemotePlayers(players));
+  client.on('playerJoined', ({ peerId }) => {
+    if (peerId !== client.peerId) ensureRemotePlayer(peerId);
+  });
+
+  try {
+    const res = await client.connect({ action: kind, code, seed: currentWorldSeed });
+    netState.code = code;
+    netState.seed = res.seed || currentWorldSeed;
+    netState.pendingChunks.clear();
+    clearRemotePlayers();
+    await switchWorld(netState.seed);
+    netState.connected = true;
+    attachWorldHooks();
+    for (const [, chunk] of world.chunks) {
+      requestChunkFromServer(chunk.cx, chunk.cy, chunk.cz);
+    }
+    setSessionStatus(`Connected to ${code} (seed ${netState.seed})`);
+  } catch (err) {
+    console.error('Failed to connect', err);
+    disconnectSession('Failed');
+  }
 }
 
 function uiSettings() {
@@ -385,6 +560,26 @@ if (worldSeedCreate) {
   });
 }
 
+if (serverUrlInput && !serverUrlInput.value) {
+  serverUrlInput.value = defaultServerUrl();
+}
+setSessionStatus('Offline');
+if (sessionRandom) {
+  sessionRandom.addEventListener('click', () => {
+    const code = randomSeed();
+    if (sessionCodeInput) sessionCodeInput.value = code;
+  });
+}
+if (sessionHost) {
+  sessionHost.addEventListener('click', () => connectSession('create'));
+}
+if (sessionJoin) {
+  sessionJoin.addEventListener('click', () => connectSession('join'));
+}
+if (sessionLeave) {
+  sessionLeave.addEventListener('click', () => disconnectSession('Left session'));
+}
+
 // If pointer lock is lost (e.g., user presses Escape), automatically open the menu after the first lock.
 document.addEventListener('pointerlockchange', () => {
   if (document.pointerLockElement === canvas) {
@@ -547,6 +742,14 @@ function animate() {
       }
     } else {
       controller.update(time.delta, world);
+    }
+  }
+
+  if (netState.connected && netState.client) {
+    netState.lastStateSent += time.delta;
+    if (netState.lastStateSent > 0.12) {
+      netState.client.sendState(controller.position.x, controller.position.y, controller.position.z);
+      netState.lastStateSent = 0;
     }
   }
 

@@ -12,6 +12,8 @@ export class VoxelWorld {
     this.scene = scene;
     this.worldId = worldId;
     this.chunks = new Map();
+    this.onEdit = null;
+    this.onChunkCreated = null;
     this.remeshQueue = [];
     this.queued = new Set();
     this.storage = new ChunkStorage(this.worldId);
@@ -40,6 +42,9 @@ export class VoxelWorld {
     generateChunk(chunk);
     this.scheduleRemesh(chunk);
     this.loadChunkFromStorage(chunk);
+    if (this.onChunkCreated) {
+      this.onChunkCreated(chunk);
+    }
     return chunk;
   }
 
@@ -84,7 +89,7 @@ export class VoxelWorld {
     return chunk.getVoxel(lx, ly, lz);
   }
 
-  setVoxel(wx, wy, wz, id, collider) {
+  setVoxel(wx, wy, wz, id, collider, opts = {}) {
     if (wy < MIN_HEIGHT || wy > MAX_HEIGHT) return false;
     if (collider) {
       const padding = 0.1;
@@ -110,7 +115,6 @@ export class VoxelWorld {
     chunk.setVoxel(lx, ly, lz, id);
     this.scheduleRemesh(chunk);
     this.storage.queueSave(cx, cy, cz, chunk.data);
-    return true;
 
     // Neighbor remesh if we touched a boundary
     const onBoundary = [
@@ -127,6 +131,11 @@ export class VoxelWorld {
         if (neighbor) this.scheduleRemesh(neighbor);
       }
     }
+
+    if (this.onEdit && opts.source !== 'remote') {
+      this.onEdit({ x: wx, y: wy, z: wz, id });
+    }
+    return true;
   }
 
   isSolid(x, y, z) {

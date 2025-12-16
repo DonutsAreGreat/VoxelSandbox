@@ -77,6 +77,23 @@
         </section>
 
         <section class="menu-section">
+          <div class="menu-section-title">Multiplayer (experimental)</div>
+          <div class="world-row">
+            <input id="serverUrl" type="text" placeholder="ws://localhost:8090">
+          </div>
+          <div class="world-row">
+            <input id="sessionCode" type="text" placeholder="Room code">
+            <button id="sessionRandom" type="button">Random</button>
+          </div>
+          <div class="save-actions">
+            <button id="sessionHost" type="button" class="primary">Host</button>
+            <button id="sessionJoin" type="button">Join</button>
+            <button id="sessionLeave" type="button" class="danger">Leave</button>
+          </div>
+          <div id="sessionStatus" class="smallprint">Offline</div>
+        </section>
+
+        <section class="menu-section">
           <div class="menu-section-title">Vehicle</div>
           <div class="save-actions">
             <button id="spawnCar" type="button">Spawn Car</button>
