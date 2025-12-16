@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Voxel Sandbox</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <canvas id="c" tabindex="0"></canvas>
+
+  <div id="hud-root"></div>
+
+  <div id="menuOverlay" class="overlay menu-overlay" style="display: none;">
+    <div class="menu-card">
+      <div class="menu-header">
+        <div>
+          <h2>Paused</h2>
+          <p>Adjust settings or manage saves.</p>
+        </div>
+        <button id="menuResume" type="button" class="accent">Resume</button>
+      </div>
+
+      <div class="menu-grid">
+        <section class="menu-section">
+          <div class="menu-section-title">Settings</div>
+          <label class="menu-row">
+            <span>FOV</span>
+            <div class="menu-control">
+              <input type="range" id="settingFov" min="60" max="100" step="1">
+              <span id="settingFovValue" class="mono">75</span>
+            </div>
+          </label>
+          <label class="menu-row">
+            <span>Mouse sensitivity</span>
+            <div class="menu-control">
+              <input type="range" id="settingSens" min="0.0008" max="0.003" step="0.0001">
+              <span id="settingSensValue" class="mono">0.0018</span>
+            </div>
+          </label>
+          <label class="menu-row">
+            <span>Fog distance</span>
+            <div class="menu-control">
+              <input type="range" id="settingFog" min="120" max="280" step="5">
+              <span id="settingFogValue" class="mono">180</span>
+            </div>
+          </label>
+        </section>
+
+        <section class="menu-section">
+          <div class="menu-section-title">Saves</div>
+          <div class="save-slots" id="saveSlots"></div>
+          <div class="save-actions">
+            <button id="saveDownload" type="button">Download world</button>
+            <label class="upload-label">
+              Upload world
+              <input id="saveUpload" type="file" accept="application/json">
+            </label>
+          </div>
+          <div class="smallprint">Slots are stored locally in your browser (IndexedDB).</div>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
