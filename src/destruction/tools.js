@@ -41,7 +41,7 @@ export class Tools {
     return true;
   }
 
-  applySecondary(world, hit) {
+  applySecondary(world, hit, collider) {
     const mat = this.currentMaterial().id;
     if (hit && hit.hit) {
       const target = {
@@ -49,7 +49,7 @@ export class Tools {
         y: hit.voxel.y + hit.normal.y,
         z: hit.voxel.z + hit.normal.z,
       };
-      return world.setVoxel(target.x, target.y, target.z, mat) === true;
+      return world.setVoxel(target.x, target.y, target.z, mat, collider) === true;
     }
     return false;
   }

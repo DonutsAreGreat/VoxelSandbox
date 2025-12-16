@@ -109,9 +109,9 @@ export class Car {
     const friction = 4;
     const turnSpeed = 2.2;
 
+    const moveDir = new THREE.Vector3(Math.sin(this.yaw), 0, Math.cos(this.yaw));
     if (forward !== 0) {
-      const dir = new THREE.Vector3(Math.sin(this.yaw), 0, Math.cos(this.yaw));
-      this.velocity.addScaledVector(dir, forward * accel * dt);
+      this.velocity.addScaledVector(moveDir, forward * accel * dt);
     }
 
     // steering scales with speed

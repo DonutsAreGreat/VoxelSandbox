@@ -84,8 +84,20 @@ export class VoxelWorld {
     return chunk.getVoxel(lx, ly, lz);
   }
 
-  setVoxel(wx, wy, wz, id) {
+  setVoxel(wx, wy, wz, id, collider) {
     if (wy < MIN_HEIGHT || wy > MAX_HEIGHT) return false;
+    if (collider) {
+      const padding = 0.1;
+      const minX = collider.min.x - padding;
+      const maxX = collider.max.x + padding;
+      const minY = collider.min.y - padding;
+      const maxY = collider.max.y + padding;
+      const minZ = collider.min.z - padding;
+      const maxZ = collider.max.z + padding;
+      if (wx + 1 > minX && wx < maxX && wy + 1 > minY && wy < maxY && wz + 1 > minZ && wz < maxZ) {
+        return false;
+      }
+    }
     const cx = this.worldToChunkCoord(wx);
     const cy = this.worldToChunkCoord(wy);
     const cz = this.worldToChunkCoord(wz);

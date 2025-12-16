@@ -4,18 +4,20 @@ export class SimplePhysics {
   constructor() {
     this.gravity = 20;
     this.maxFallSpeed = 60;
-    this.radius = 0.35;
-    this.height = 1.75;
+    // Slightly shrink collider to reduce jitter against blocks
+    this.radius = 0.3;
+    this.height = 1.7;
     this.stepHeight = 0.6;
   }
 
   intersectsWorld(pos, world) {
-    const minX = Math.floor(pos.x - this.radius);
-    const maxX = Math.floor(pos.x + this.radius);
-    const minY = Math.floor(pos.y);
-    const maxY = Math.floor(pos.y + this.height);
-    const minZ = Math.floor(pos.z - this.radius);
-    const maxZ = Math.floor(pos.z + this.radius);
+    const eps = 0.02;
+    const minX = Math.floor(pos.x - this.radius + eps);
+    const maxX = Math.floor(pos.x + this.radius - eps);
+    const minY = Math.floor(pos.y + eps);
+    const maxY = Math.floor(pos.y + this.height - eps);
+    const minZ = Math.floor(pos.z - this.radius + eps);
+    const maxZ = Math.floor(pos.z + this.radius - eps);
 
     for (let y = minY; y <= maxY; y++) {
       for (let z = minZ; z <= maxZ; z++) {
@@ -66,7 +68,7 @@ export class SimplePhysics {
     const moveAxis = (axis) => {
       const delta = vel[axis] * dt;
       if (delta === 0) return;
-      const stepSize = 0.1 * Math.sign(delta);
+      const stepSize = 0.05 * Math.sign(delta);
       let remaining = delta;
       while (Math.abs(remaining) > 1e-4) {
         const move = Math.abs(remaining) > Math.abs(stepSize) ? stepSize : remaining;
@@ -92,7 +94,7 @@ export class SimplePhysics {
 
     // Ground check after movement
     const groundProbe = pos.clone();
-    groundProbe.y -= 0.05;
+    groundProbe.y -= 0.15;
     grounded = this.intersectsWorld(groundProbe, world);
 
     return { position: pos, velocity: vel, grounded };

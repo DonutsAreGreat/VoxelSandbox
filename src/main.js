@@ -427,7 +427,11 @@ function handlePrimary() {
 function handleSecondary() {
   if (!input.pointerLocked) return;
   const hit = castFromCamera();
-  if (tools.applySecondary(world, hit)) {
+  const collider = {
+    min: controller.position.clone().add(new THREE.Vector3(-0.35, 0, -0.35)),
+    max: controller.position.clone().add(new THREE.Vector3(0.35, controller.eyeHeight, 0.35)),
+  };
+  if (tools.applySecondary(world, hit, collider)) {
     updateHUD();
   }
 }
