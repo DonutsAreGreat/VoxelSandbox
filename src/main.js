@@ -10,7 +10,7 @@ import { Tools } from './destruction/tools.js';
 import { Explosions } from './destruction/explosions.js';
 import { SimplePhysics } from './physics/simplePhysics.js';
 
-const REACH_DISTANCE = 4
+const REACH_DISTANCE = 4;
 const DEFAULT_FOG_FAR = 180;
 const DEFAULT_FOV = 75;
 const DEFAULT_SENS = 0.0018;
@@ -22,6 +22,7 @@ const menuResume = document.getElementById('menuResume');
 const saveSlotsEl = document.getElementById('saveSlots');
 const saveDownload = document.getElementById('saveDownload');
 const saveUpload = document.getElementById('saveUpload');
+const resetWorldBtn = document.getElementById('resetWorld');
 const settingFov = document.getElementById('settingFov');
 const settingFovValue = document.getElementById('settingFovValue');
 const settingSens = document.getElementById('settingSens');
@@ -38,7 +39,7 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x0b1325);
 scene.fog = new THREE.Fog(scene.background, 80, DEFAULT_FOG_FAR);
 
-const camera = new THREE.PerspectiveCamera(DEFAULT_FOV, window.innerWidth / window.innerHeight, 0.1, 400);
+const camera = new THREE.PerspectiveCamera(DEFAULT_FOV, window.innerWidth / window.innerHeight, 0.1, 220);
 
 const ambient = new THREE.AmbientLight(0xcad6ff, 0.55);
 scene.add(ambient);
@@ -271,6 +272,17 @@ if (saveUpload) {
     await world.reloadFromStorage(controller.position);
     await refreshSlots();
     saveUpload.value = '';
+  });
+}
+if (resetWorldBtn) {
+  resetWorldBtn.addEventListener('click', async () => {
+    const first = window.confirm('Reset current world? This removes all saved chunks for this seed.');
+    if (!first) return;
+    const second = window.confirm('Do you really want to reset the world? This cannot be undone.');
+    if (!second) return;
+    await world.flushSaves();
+    await world.storage.clearWorld(currentWorldSeed);
+    await switchWorld(currentWorldSeed);
   });
 }
 if (saveSlotsEl) {

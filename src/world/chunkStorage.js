@@ -237,6 +237,33 @@ export class ChunkStorage {
     });
   }
 
+  async clearWorld(targetWorld = this.worldId) {
+    const db = await this.dbPromise;
+    const chunkPrefix = `world:${targetWorld}:`;
+    const slotPrefix = `world:${targetWorld}:slot:`;
+
+    const deleteByPrefix = (storeName, prefix) =>
+      new Promise((resolve, reject) => {
+        const tx = db.transaction(storeName, 'readwrite');
+        const store = tx.objectStore(storeName);
+        const req = store.openCursor();
+        req.onerror = () => reject(req.error);
+        req.onsuccess = (e) => {
+          const cursor = e.target.result;
+          if (!cursor) {
+            resolve();
+            return;
+          }
+          if (cursor.key.startsWith(prefix)) {
+            store.delete(cursor.key);
+          }
+          cursor.continue();
+        };
+      });
+
+    await Promise.all([deleteByPrefix(STORE_NAME, chunkPrefix), deleteByPrefix(SAVE_STORE, slotPrefix)]);
+  }
+
   settingsKey() {
     return 'global:settings';
   }

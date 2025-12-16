@@ -253,6 +253,13 @@ canvas#c {
   margin-top: 6px;
 }
 
+.danger {
+  background: linear-gradient(120deg, #ff6b6b, #d13535);
+  color: #0c1021;
+  border: none;
+  font-weight: 700;
+}
+
 .smallprint {
   margin-top: 10px;
   color: #9ba6c2;

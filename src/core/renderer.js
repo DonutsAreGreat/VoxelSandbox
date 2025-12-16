@@ -5,6 +5,7 @@ export function createRenderer(canvas) {
     canvas,
     antialias: true,
     alpha: true,
+    logarithmicDepthBuffer: true, // reduce distant z-fighting/holes between chunks
     powerPreference: 'high-performance',
   });
   renderer.outputColorSpace = THREE.SRGBColorSpace;
