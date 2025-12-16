@@ -10,6 +10,7 @@ export class Car {
     this.yaw = 0;
     this.rideHeight = 1.2;
     this.seatOffset = new THREE.Vector3(0, 1.1, 0);
+    this.halfSize = new THREE.Vector3(0.9, 1.2, 1.6); // approximate hull for overlap checks
     this.mesh = this.buildMesh();
     this.scene.add(this.mesh);
     this.syncMesh();
@@ -55,7 +56,7 @@ export class Car {
   groundHeight(x, z) {
     for (let y = MAX_HEIGHT; y >= MIN_HEIGHT; y--) {
       if (this.world.isSolid(Math.floor(x), y, Math.floor(z))) {
-        return y + 1; // surface is top of block
+        return y; // surface is top of block
       }
     }
     return MIN_HEIGHT;
@@ -65,6 +66,38 @@ export class Car {
     const seat = this.seatOffset.clone();
     seat.applyAxisAngle(new THREE.Vector3(0, 1, 0), this.yaw);
     return this.position.clone().add(seat);
+  }
+
+  isClearAtY(yPos) {
+    const offsets = [];
+    const { x: hx, y: hy, z: hz } = this.halfSize;
+    for (const sx of [-1, 1]) {
+      for (const sy of [0, 1]) {
+        for (const sz of [-1, 1]) {
+          offsets.push(new THREE.Vector3(hx * sx, hy * sy, hz * sz));
+        }
+      }
+    }
+    const rotAxis = new THREE.Vector3(0, 1, 0);
+    for (const o of offsets) {
+      const p = o.clone().applyAxisAngle(rotAxis, this.yaw).add(new THREE.Vector3(this.position.x, yPos, this.position.z));
+      if (this.world.isSolid(Math.floor(p.x), Math.floor(p.y), Math.floor(p.z))) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  resolveOverlap() {
+    const maxLift = 3;
+    const step = 0.1;
+    for (let lift = 0; lift <= maxLift; lift += step) {
+      const yPos = this.position.y + lift;
+      if (this.isClearAtY(yPos)) {
+        this.position.y = yPos;
+        return;
+      }
+    }
   }
 
   update(dt, input) {
@@ -103,6 +136,7 @@ export class Car {
     const targetY = groundY + this.rideHeight;
     this.position.y = targetY;
     this.velocity.y = 0;
+    this.resolveOverlap();
 
     this.syncMesh();
   }
